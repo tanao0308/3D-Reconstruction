@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import numpy as np
 
 from numba import njit, prange
@@ -5,7 +7,7 @@ from skimage import measure
 
 
 class TSDFVolume:
-  """Volumetric TSDF Fusion of RGB-D Images.
+  """Volumetric TSDF Fusion.
   """
   def __init__(self, vol_bnds, voxel_size):
     """Constructor.
@@ -22,7 +24,6 @@ class TSDFVolume:
     self._vol_bnds = vol_bnds
     self._voxel_size = float(voxel_size)
     self._trunc_margin = 5 * self._voxel_size  # truncation on SDF
-    self._color_const = 256 * 256
 
     # Adjust volume bounds and ensure C-order contiguous
     self._vol_dim = np.ceil((self._vol_bnds[:,1]-self._vol_bnds[:,0])/self._voxel_size).copy(order='C').astype(int)
@@ -38,7 +39,6 @@ class TSDFVolume:
     self._tsdf_vol_cpu = np.ones(self._vol_dim).astype(np.float32)
     # for computing the cumulative moving average of observations per voxel
     self._weight_vol_cpu = np.zeros(self._vol_dim).astype(np.float32)
-    self._color_vol_cpu = np.zeros(self._vol_dim).astype(np.float32)
 
     # Get voxel grid coordinates
     xv, yv, zv = np.meshgrid(
@@ -92,11 +92,10 @@ class TSDFVolume:
       tsdf_vol_int[i] = (w_old[i] * tsdf_vol[i] + obs_weight * dist[i]) / w_new[i]
     return tsdf_vol_int, w_new
 
-  def integrate(self, color_im, depth_im, cam_intr, cam_pose, obs_weight=1.):
+  def integrate(self, depth_im, cam_intr, cam_pose, obs_weight=1.):
     """Integrate an RGB-D frame into the TSDF volume.
 
     Args:
-      color_im (ndarray): An RGB image of shape (H, W, 3).
       depth_im (ndarray): A depth image of shape (H, W).
       cam_intr (ndarray): The camera intrinsics matrix of shape (3, 3).
       cam_pose (ndarray): The camera pose (i.e. extrinsics) of shape (4, 4).
@@ -104,10 +103,6 @@ class TSDFVolume:
         value
     """
     im_h, im_w = depth_im.shape
-
-    # Fold RGB color image into a single channel image
-    color_im = color_im.astype(np.float32)
-    color_im = np.floor(color_im[...,2]*self._color_const + color_im[...,1]*256 + color_im[...,0])
 
     # Convert voxel grid coordinates to pixel coordinates
     cam_pts = self.vox2world(self._vol_origin, self.vox_coords, self._voxel_size)
@@ -139,40 +134,18 @@ class TSDFVolume:
     self._weight_vol_cpu[valid_vox_x, valid_vox_y, valid_vox_z] = w_new
     self._tsdf_vol_cpu[valid_vox_x, valid_vox_y, valid_vox_z] = tsdf_vol_new
 
-    # Integrate color
-    old_color = self._color_vol_cpu[valid_vox_x, valid_vox_y, valid_vox_z]
-    old_b = np.floor(old_color / self._color_const)
-    old_g = np.floor((old_color-old_b*self._color_const)/256)
-    old_r = old_color - old_b*self._color_const - old_g*256
-    new_color = color_im[pix_y[valid_pts],pix_x[valid_pts]]
-    new_b = np.floor(new_color / self._color_const)
-    new_g = np.floor((new_color - new_b*self._color_const) /256)
-    new_r = new_color - new_b*self._color_const - new_g*256
-    new_b = np.minimum(255., np.round((w_old*old_b + obs_weight*new_b) / w_new))
-    new_g = np.minimum(255., np.round((w_old*old_g + obs_weight*new_g) / w_new))
-    new_r = np.minimum(255., np.round((w_old*old_r + obs_weight*new_r) / w_new))
-    self._color_vol_cpu[valid_vox_x, valid_vox_y, valid_vox_z] = new_b*self._color_const + new_g*256 + new_r
-
   def get_volume(self):
-    return self._tsdf_vol_cpu, self._color_vol_cpu
+    return self._tsdf_vol_cpu
 
   def get_point_cloud(self):
     """Extract a point cloud from the voxel volume.
     """
-    tsdf_vol, color_vol = self.get_volume()
+    tsdf_vol = self.get_volume()
 
     # Marching cubes
     verts = measure.marching_cubes_lewiner(tsdf_vol, level=0)[0]
     verts_ind = np.round(verts).astype(int)
     verts = verts*self._voxel_size + self._vol_origin
-
-    # Get vertex colors
-    rgb_vals = color_vol[verts_ind[:, 0], verts_ind[:, 1], verts_ind[:, 2]]
-    colors_b = np.floor(rgb_vals / self._color_const)
-    colors_g = np.floor((rgb_vals - colors_b*self._color_const) / 256)
-    colors_r = rgb_vals - colors_b*self._color_const - colors_g*256
-    colors = np.floor(np.asarray([colors_r, colors_g, colors_b])).T
-    colors = colors.astype(np.uint8)
 
     pc = np.hstack([verts, colors])
     return pc
@@ -180,21 +153,14 @@ class TSDFVolume:
   def get_mesh(self):
     """Compute a mesh from the voxel volume using marching cubes.
     """
-    tsdf_vol, color_vol = self.get_volume()
+    tsdf_vol = self.get_volume()
 
     # Marching cubes
     verts, faces, norms, vals = measure.marching_cubes_lewiner(tsdf_vol, level=0)
     verts_ind = np.round(verts).astype(int)
     verts = verts*self._voxel_size+self._vol_origin  # voxel grid coordinates to world coordinates
 
-    # Get vertex colors
-    rgb_vals = color_vol[verts_ind[:,0], verts_ind[:,1], verts_ind[:,2]]
-    colors_b = np.floor(rgb_vals/self._color_const)
-    colors_g = np.floor((rgb_vals-colors_b*self._color_const)/256)
-    colors_r = rgb_vals-colors_b*self._color_const-colors_g*256
-    colors = np.floor(np.asarray([colors_r,colors_g,colors_b])).T
-    colors = colors.astype(np.uint8)
-    return verts, faces, norms, colors
+    return verts, faces, norms
 
 
 def rigid_transform(xyz, transform):
@@ -220,7 +186,7 @@ def get_view_frustum(depth_im, cam_intr, cam_pose):
   return view_frust_pts
 
 
-def meshwrite(filename, verts, faces, norms, colors):
+def meshwrite(filename, verts, faces, norms):
   """Save a 3D mesh to a polygon .ply file.
   """
   # Write header
@@ -246,8 +212,8 @@ def meshwrite(filename, verts, faces, norms, colors):
     ply_file.write("%f %f %f %f %f %f %d %d %d\n"%(
       verts[i,0], verts[i,1], verts[i,2],
       norms[i,0], norms[i,1], norms[i,2],
-      colors[i,0], colors[i,1], colors[i,2],
-    ))
+	  200, 200, 200
+	))
 
   # Write face list
   for i in range(faces.shape[0]):
@@ -255,29 +221,3 @@ def meshwrite(filename, verts, faces, norms, colors):
 
   ply_file.close()
 
-
-def pcwrite(filename, xyzrgb):
-  """Save a point cloud to a polygon .ply file.
-  """
-  xyz = xyzrgb[:, :3]
-  rgb = xyzrgb[:, 3:].astype(np.uint8)
-
-  # Write header
-  ply_file = open(filename,'w')
-  ply_file.write("ply\n")
-  ply_file.write("format ascii 1.0\n")
-  ply_file.write("element vertex %d\n"%(xyz.shape[0]))
-  ply_file.write("property float x\n")
-  ply_file.write("property float y\n")
-  ply_file.write("property float z\n")
-  ply_file.write("property uchar red\n")
-  ply_file.write("property uchar green\n")
-  ply_file.write("property uchar blue\n")
-  ply_file.write("end_header\n")
-
-  # Write vertex list
-  for i in range(xyz.shape[0]):
-    ply_file.write("%f %f %f %d %d %d\n"%(
-      xyz[i, 0], xyz[i, 1], xyz[i, 2],
-      rgb[i, 0], rgb[i, 1], rgb[i, 2],
-    ))
