@@ -1,0 +1,9 @@
+libdir=/root/github/tsdf-fusion-python/myenv/lib
+includedir=/root/github/tsdf-fusion-python/myenv/include
+
+Name: LAPACK
+Description: FORTRAN reference implementation of LAPACK Linear Algebra PACKage
+Version: 3.9.0
+URL: http://www.netlib.org/lapack/
+Libs: -L${libdir} -llapack
+Requires.private: blas

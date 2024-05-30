@@ -1,0 +1,94 @@
+==> 2024-04-26 18:09:10 <==
+# cmd: /root/miniconda3/bin/conda create --prefix ./myenv
+# conda version: 24.3.0
+==> 2024-04-26 18:10:29 <==
+# cmd: /root/miniconda3/bin/conda install python=2.7
+# conda version: 24.3.0
++defaults/linux-64::_libgcc_mutex-0.1-main
++defaults/linux-64::_openmp_mutex-5.1-1_gnu
++defaults/linux-64::ca-certificates-2024.3.11-h06a4308_0
++defaults/linux-64::libffi-3.4.4-h6a678d5_0
++defaults/linux-64::libgcc-ng-11.2.0-h1234567_1
++defaults/linux-64::libgomp-11.2.0-h1234567_1
++defaults/linux-64::libstdcxx-ng-11.2.0-h1234567_1
++defaults/linux-64::ncurses-6.4-h6a678d5_0
++defaults/linux-64::pip-19.3.1-py27_0
++defaults/linux-64::python-2.7.18-h42bf7aa_3
++defaults/linux-64::readline-8.2-h5eee18b_0
++defaults/linux-64::setuptools-44.0.0-py27_0
++defaults/linux-64::sqlite-3.41.2-h5eee18b_0
++defaults/linux-64::tk-8.6.12-h1ccaba5_0
++defaults/linux-64::zlib-1.2.13-h5eee18b_0
++defaults/noarch::certifi-2020.6.20-pyhd3eb1b0_3
++defaults/noarch::wheel-0.37.1-pyhd3eb1b0_0
+# update specs: ['python=2.7']
+==> 2024-04-26 18:11:14 <==
+# cmd: /root/miniconda3/bin/conda install numpy
+# conda version: 24.3.0
++defaults/linux-64::blas-1.0-mkl
++defaults/linux-64::intel-openmp-2023.1.0-hdb19cb5_46306
++defaults/linux-64::libgfortran-ng-7.5.0-ha8ba4b0_17
++defaults/linux-64::libgfortran4-7.5.0-ha8ba4b0_17
++defaults/linux-64::mkl-2020.2-256
++defaults/linux-64::mkl-service-2.3.0-py27he904b0f_0
++defaults/linux-64::mkl_fft-1.0.15-py27ha843d7b_0
++defaults/linux-64::mkl_random-1.1.0-py27hd6b4f25_0
++defaults/linux-64::numpy-1.16.6-py27hbc911f0_0
++defaults/linux-64::numpy-base-1.16.6-py27hde5b4d6_0
++defaults/noarch::six-1.16.0-pyhd3eb1b0_1
+# update specs: ['numpy']
+==> 2024-04-26 18:18:12 <==
+# cmd: /root/miniconda3/bin/conda install scikit-image
+# conda version: 24.3.0
++conda-forge/linux-64::cytoolz-0.10.1-py27h516909a_0
++conda-forge/linux-64::enum34-1.1.10-py27h8c360ce_1
++conda-forge/linux-64::freetype-2.10.4-h0708190_1
++conda-forge/linux-64::futures-3.3.0-py27h8c360ce_1
++conda-forge/linux-64::icu-64.2-he1b5a44_1
++conda-forge/linux-64::imageio-2.6.1-py27_0
++conda-forge/linux-64::jbig-2.1-h7f98852_2003
++conda-forge/linux-64::jpeg-9e-h166bdaf_1
++conda-forge/linux-64::kiwisolver-1.1.0-py27h9e3301b_1
++conda-forge/linux-64::lerc-2.2.1-h9c3ff4c_0
++conda-forge/linux-64::libblas-3.9.0-1_h6e990d7_netlib
++conda-forge/linux-64::libcblas-3.9.0-3_h893e4fe_netlib
++conda-forge/linux-64::libdeflate-1.7-h7f98852_5
++conda-forge/linux-64::liblapack-3.9.0-3_h893e4fe_netlib
++conda-forge/linux-64::libpng-1.6.37-h21135ba_2
++conda-forge/linux-64::libtiff-4.3.0-hf544144_1
++conda-forge/linux-64::libwebp-base-1.2.2-h7f98852_1
++conda-forge/linux-64::lz4-c-1.9.3-h9c3ff4c_1
++conda-forge/linux-64::matplotlib-base-2.2.5-py27h250f245_1
++conda-forge/linux-64::pillow-6.2.1-py27hd70f55b_1
++conda-forge/linux-64::python_abi-2.7-1_cp27mu
++conda-forge/linux-64::pywavelets-1.0.3-py27hd352d35_1
++conda-forge/linux-64::scikit-image-0.14.3-py27hb3f55d8_0
++conda-forge/linux-64::scipy-1.2.1-py27h921218d_2
++conda-forge/linux-64::subprocess32-3.5.4-py27h516909a_0
++conda-forge/linux-64::tornado-5.1.1-py27h14c3975_1000
++conda-forge/linux-64::xz-5.2.5-h516909a_1
++conda-forge/linux-64::zstd-1.5.0-ha95c52a_0
++conda-forge/noarch::backports-1.0-pyhd8ed1ab_3
++conda-forge/noarch::backports.functools_lru_cache-1.6.1-py_0
++conda-forge/noarch::backports_abc-0.5-py_1
++conda-forge/noarch::cloudpickle-1.3.0-py_0
++conda-forge/noarch::cycler-0.10.0-py_2
++conda-forge/noarch::dask-core-1.2.2-py_0
++conda-forge/noarch::decorator-4.4.2-py_0
++conda-forge/noarch::functools32-3.2.3.2-py_3
++conda-forge/noarch::networkx-2.2-py_1
++conda-forge/noarch::olefile-0.46-pyh9f0ad1d_1
++conda-forge/noarch::pyparsing-2.4.7-pyh9f0ad1d_0
++conda-forge/noarch::python-dateutil-2.8.1-py_0
++conda-forge/noarch::pytz-2020.1-pyh9f0ad1d_0
++conda-forge/noarch::singledispatch-3.6.1-pyh44b312d_0
++conda-forge/noarch::toolz-0.10.0-py_0
+# update specs: ['scikit-image']
+==> 2024-04-26 18:19:24 <==
+# cmd: /root/miniconda3/bin/conda install numba
+# conda version: 24.3.0
++conda-forge/linux-64::libllvm8-8.0.1-hc9558a2_0
++conda-forge/linux-64::llvmlite-0.31.0-py27h5ee40b5_1
++conda-forge/linux-64::numba-0.47.0-py27hb3f55d8_0
++conda-forge/noarch::funcsigs-1.0.2-py_3
+# update specs: ['numba']

@@ -1,0 +1,8 @@
+libdir=/root/github/tsdf-fusion-python/myenv/lib
+includedir=/root/github/tsdf-fusion-python/myenv/include
+
+Name: BLAS
+Description: FORTRAN reference implementation of BLAS Basic Linear Algebra Subprograms
+Version: 3.9.0
+URL: http://www.netlib.org/blas/
+Libs: -L${libdir} -lblas
