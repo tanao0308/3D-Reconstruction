@@ -5,13 +5,10 @@ import cv2
 import numpy as np
 import fusion
 
-data = "stair"
+data = "data"
 
 if __name__ == "__main__":
-    print(data+"/frame")
-
-
-    print("Estimating voxel volume bounds...")  # 估计体素体积的边界...
+    print("Estimating voxel volume bounds...")
     n_imgs = 10  # 要处理的图像数量
     cam_intr = np.loadtxt("data/camera-intrinsics.txt", delimiter=' ')  # 读取相机内参矩阵
     vol_bnds = np.zeros((3,2))  # 初始化体素体积边界（3维，分别是x, y, z的最小值和最大值）
@@ -32,23 +29,16 @@ if __name__ == "__main__":
     print("Initializing voxel volume...")
     tsdf_vol = fusion.TSDFVolume(vol_bnds, voxel_size=0.02)  # 初始化TSDF体积，体素大小为0.02米
     
-    # 遍历RGB-D图像并将它们融合在一起
-    t0_elapse = time.time()  # 记录开始时间
+    # 融合TSDF
     for i in range(n_imgs):
         print("Fusing frame %d/%d"%(i+1, n_imgs))  # 打印当前帧信息
     
-        # 读取RGB-D图像和相机位姿
-        depth_im = cv2.imread(data+"/frame-%06d.depth.png"%(i), -1).astype(float)  # 读取深度图像
+        depth_im = cv2.imread(data+"/frame-%06d.depth.png"%(i), -1).astype(float) # 读取深度图像
+        depth_im[depth_im == 65535] = 0  # 将无效深度值设置为0
         depth_im /= 1000.  # 深度图像单位转换为米
-        depth_im[depth_im == 65.535] = 0  # 将无效深度值设置为0
         cam_pose = np.loadtxt(data+"/frame-%06d.pose.txt"%(i))  # 读取相机位姿
     
-        # 将观测融合到体素体积中（假设颜色与深度对齐）
-        tsdf_vol.integrate(depth_im, cam_intr, cam_pose, obs_weight=1.)  # 融合当前帧
-    
-    # 计算并打印平均帧率
-    fps = n_imgs / (time.time() - t0_elapse)
-    print("Average FPS: {:.2f}".format(fps))
+        tsdf_vol.integrate(depth_im, cam_intr, cam_pose, obs_weight=1.)  # 融合
     
     # 从体素体积获取网格并保存到磁盘（可用Meshlab查看）
     print("Saving mesh to mesh.ply...")

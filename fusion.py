@@ -23,7 +23,7 @@ class TSDFVolume:
         # Define voxel volume parameters
         self._vol_bnds = vol_bnds
         self._voxel_size = float(voxel_size)
-        self._trunc_margin = 5 * self._voxel_size    # truncation on SDF
+        self.trunc_margin = 5 * self._voxel_size    # truncation on SDF
 
         # Adjust volume bounds and ensure C-order contiguous
         self._vol_dim = np.ceil((self._vol_bnds[:,1]-self._vol_bnds[:,0])/self._voxel_size).copy(order='C').astype(int)
@@ -57,7 +57,6 @@ class TSDFVolume:
     @njit(parallel=True)
     def vox2world(vol_origin, vox_coords, vox_size):
         # 将体素网格坐标转换为世界坐标。
-    
         vol_origin = vol_origin.astype(np.float32)
         vox_coords = vox_coords.astype(np.float32)
         cam_pts = np.empty_like(vox_coords, dtype=np.float32)
@@ -104,15 +103,13 @@ class TSDFVolume:
             cam_pose (ndarray): 相机位姿（即外参），形状为 (4, 4)。
             obs_weight (float): 当前观测的权重。较高的值表示较高的权重。
         """
-            
-        # 将体素网格坐标转换为世界坐标
-        cam_pts = self.vox2world(self._vol_origin, self.vox_coords, self._voxel_size)
+        cam_pts = self.vox2world(self._vol_origin, self.vox_coords, self._voxel_size) # 将体素网格坐标转换为世界坐标
+        print(cam_pts.shape)
         cam_pts = rigid_transform(cam_pts, np.linalg.inv(cam_pose))  # 将点从世界坐标系转换到相机坐标系
         pix_z = cam_pts[:, 2]  # 提取 z 坐标
         pix = self.cam2pix(cam_pts, cam_intr)  # 将相机坐标系下的点投影到像素坐标系
         pix_x, pix_y = pix[:, 0], pix[:, 1]  # 分别提取 x 和 y 坐标
 
-        print(cam_pts.shape)
         im_h, im_w = depth_im.shape  # 获取深度图像的高度和宽度
  
         # 剔除视锥体外的像素
@@ -127,8 +124,8 @@ class TSDFVolume:
     
         # 集成 TSDF
         depth_diff = depth_val - pix_z  # 计算深度差
-        valid_pts = np.logical_and(depth_val > 0, depth_diff >= -self._trunc_margin)  # 筛选出有效点
-        dist = np.minimum(1, depth_diff / self._trunc_margin)  # 计算 TSDF 距离值
+        valid_pts = np.logical_and(depth_val > 0, depth_diff >= -self.trunc_margin)  # 筛选出有效点
+        dist = np.minimum(1, depth_diff / self.trunc_margin)  # 计算 TSDF 距离值
         valid_vox_x = self.vox_coords[valid_pts, 0]  # 获取有效体素的 x 坐标
         valid_vox_y = self.vox_coords[valid_pts, 1]  # 获取有效体素的 y 坐标
         valid_vox_z = self.vox_coords[valid_pts, 2]  # 获取有效体素的 z 坐标
@@ -180,8 +177,6 @@ def rigid_transform(xyz, transform):
 
 
 def get_view_frustum(depth_im, cam_intr, cam_pose):
-    """Get corners of 3D camera view frustum of depth image
-    """
     im_h = depth_im.shape[0]
     im_w = depth_im.shape[1]
     max_depth = np.max(depth_im)
@@ -189,7 +184,8 @@ def get_view_frustum(depth_im, cam_intr, cam_pose):
         (np.array([0,0,0,im_w,im_w])-cam_intr[0,2])*np.array([0,max_depth,max_depth,max_depth,max_depth])/cam_intr[0,0],
         (np.array([0,0,im_h,0,im_h])-cam_intr[1,2])*np.array([0,max_depth,max_depth,max_depth,max_depth])/cam_intr[1,1],
         np.array([0,max_depth,max_depth,max_depth,max_depth])
-    ])
+    ]) # 五个角点的坐标
+    # 将视锥体角点从相机坐标系转换到世界坐标系
     view_frust_pts = rigid_transform(view_frust_pts.T, cam_pose).T
     return view_frust_pts
 
