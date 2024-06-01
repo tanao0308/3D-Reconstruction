@@ -36,9 +36,9 @@ class TSDFVolume:
         )
 
         # Initialize pointers to voxel volume in CPU memory
-        self._tsdf_vol_cpu = np.ones(self._vol_dim).astype(np.float32)
+        self._tsdf_vol = np.ones(self._vol_dim).astype(np.float32)
         # for computing the cumulative moving average of observations per voxel
-        self._weight_vol_cpu = np.zeros(self._vol_dim).astype(np.float32)
+        self._weight_vol = np.zeros(self._vol_dim).astype(np.float32)
 
         # Get voxel grid coordinates
         xv, yv, zv = np.meshgrid(
@@ -132,15 +132,15 @@ class TSDFVolume:
         valid_vox_x = self.vox_coords[valid_pts, 0]  # 获取有效体素的 x 坐标
         valid_vox_y = self.vox_coords[valid_pts, 1]  # 获取有效体素的 y 坐标
         valid_vox_z = self.vox_coords[valid_pts, 2]  # 获取有效体素的 z 坐标
-        w_old = self._weight_vol_cpu[valid_vox_x, valid_vox_y, valid_vox_z]  # 获取旧的权重值
-        tsdf_vals = self._tsdf_vol_cpu[valid_vox_x, valid_vox_y, valid_vox_z]  # 获取旧的 TSDF 值
+        w_old = self._weight_vol[valid_vox_x, valid_vox_y, valid_vox_z]  # 获取旧的权重值
+        tsdf_vals = self._tsdf_vol[valid_vox_x, valid_vox_y, valid_vox_z]  # 获取旧的 TSDF 值
         valid_dist = dist[valid_pts]  # 获取有效的 TSDF 距离值
         tsdf_vol_new, w_new = self.integrate_tsdf(tsdf_vals, valid_dist, w_old, obs_weight)  # 计算新的 TSDF 值和权重
-        self._weight_vol_cpu[valid_vox_x, valid_vox_y, valid_vox_z] = w_new  # 更新权重值
-        self._tsdf_vol_cpu[valid_vox_x, valid_vox_y, valid_vox_z] = tsdf_vol_new  # 更新 TSDF 值
+        self._weight_vol[valid_vox_x, valid_vox_y, valid_vox_z] = w_new  # 更新权重值
+        self._tsdf_vol[valid_vox_x, valid_vox_y, valid_vox_z] = tsdf_vol_new  # 更新 TSDF 值
     
     def get_volume(self):
-        return self._tsdf_vol_cpu
+        return self._tsdf_vol
 
     def get_point_cloud(self):
         """Extract a point cloud from the voxel volume.

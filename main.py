@@ -5,20 +5,23 @@ import cv2
 import numpy as np
 import fusion
 
+data = "stair"
 
 if __name__ == "__main__":
+    print(data+"/frame")
 
-    print("Estimating voxel volume bounds...")  # 打印消息：正在估计体素体积的边界...
-    n_imgs = 1000  # 设置要处理的图像数量为1000
+
+    print("Estimating voxel volume bounds...")  # 估计体素体积的边界...
+    n_imgs = 10  # 要处理的图像数量
     cam_intr = np.loadtxt("data/camera-intrinsics.txt", delimiter=' ')  # 读取相机内参矩阵
     vol_bnds = np.zeros((3,2))  # 初始化体素体积边界（3维，分别是x, y, z的最小值和最大值）
     
     for i in range(n_imgs):
         # 读取深度图像和相机位姿
-        depth_im = cv2.imread("data/frame-%06d.depth.png"%(i), -1).astype(float)  # 读取深度图像，并转换为浮点型
+        depth_im = cv2.imread(data+"/frame-%06d.depth.png"%(i), -1).astype(float)  # 读取深度图像，并转换为浮点型
         depth_im /= 1000.  # 深度图像以16位PNG保存，单位是毫米，这里转换为米
         depth_im[depth_im == 65.535] = 0  # 将无效深度值设置为0（特定于7-scenes数据集）
-        cam_pose = np.loadtxt("data/frame-%06d.pose.txt"%(i))  # 读取相机位姿（4x4刚体变换矩阵）
+        cam_pose = np.loadtxt(data+"/frame-%06d.pose.txt"%(i))  # 读取相机位姿（4x4刚体变换矩阵）
     
         # 计算相机视锥并扩展凸包
         view_frust_pts = fusion.get_view_frustum(depth_im, cam_intr, cam_pose)  # 获取视锥体顶点
@@ -31,14 +34,14 @@ if __name__ == "__main__":
     
     # 遍历RGB-D图像并将它们融合在一起
     t0_elapse = time.time()  # 记录开始时间
-    for i in range(n_imgs/100):
+    for i in range(n_imgs):
         print("Fusing frame %d/%d"%(i+1, n_imgs))  # 打印当前帧信息
     
         # 读取RGB-D图像和相机位姿
-        depth_im = cv2.imread("data/frame-%06d.depth.png"%(i), -1).astype(float)  # 读取深度图像
+        depth_im = cv2.imread(data+"/frame-%06d.depth.png"%(i), -1).astype(float)  # 读取深度图像
         depth_im /= 1000.  # 深度图像单位转换为米
         depth_im[depth_im == 65.535] = 0  # 将无效深度值设置为0
-        cam_pose = np.loadtxt("data/frame-%06d.pose.txt"%(i))  # 读取相机位姿
+        cam_pose = np.loadtxt(data+"/frame-%06d.pose.txt"%(i))  # 读取相机位姿
     
         # 将观测融合到体素体积中（假设颜色与深度对齐）
         tsdf_vol.integrate(depth_im, cam_intr, cam_pose, obs_weight=1.)  # 融合当前帧
