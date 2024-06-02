@@ -40,7 +40,6 @@ if __name__ == "__main__":
     
         tsdf_vol.integrate(depth_im, cam_intr, cam_pose, obs_weight=1.)  # 融合
     
-    # 从体素体积获取网格并保存到磁盘（可用Meshlab查看）
     print("Saving mesh to mesh.ply...")
     verts, faces, norms = tsdf_vol.get_mesh()  # 获取网格数据
     fusion.meshwrite("mesh.ply", verts, faces, norms)  # 保存网格到文件

@@ -10,49 +10,42 @@ class TSDFVolume:
     """Volumetric TSDF Fusion.
     """
     def __init__(self, vol_bnds, voxel_size):
-        """Constructor.
-
-        Args:
-            vol_bnds (ndarray): An ndarray of shape (3, 2). Specifies the
-                xyz bounds (min/max) in meters.
-            voxel_size (float): The volume discretization in meters.
+        """
+        vol_bnds (ndarray): 一个形状为 (3, 2) 的数组，指定了 xyz 方向的边界（最小值/最大值），单位为米。
+        voxel_size (float): 体素的尺寸，单位为米。
         """
         vol_bnds = np.asarray(vol_bnds)
-        assert vol_bnds.shape == (3, 2), "[!] `vol_bnds` should be of shape (3, 2)."
-
-        # Define voxel volume parameters
-        self._vol_bnds = vol_bnds
-        self._voxel_size = float(voxel_size)
-        self.trunc_margin = 5 * self._voxel_size    # truncation on SDF
-
-        # Adjust volume bounds and ensure C-order contiguous
-        self._vol_dim = np.ceil((self._vol_bnds[:,1]-self._vol_bnds[:,0])/self._voxel_size).copy(order='C').astype(int)
-        self._vol_bnds[:,1] = self._vol_bnds[:,0]+self._vol_dim*self._voxel_size
-        self._vol_origin = self._vol_bnds[:,0].copy(order='C').astype(np.float32)
-
-        print("Voxel volume size: {} x {} x {} - # points: {:,}".format(
-            self._vol_dim[0], self._vol_dim[1], self._vol_dim[2],
-            self._vol_dim[0]*self._vol_dim[1]*self._vol_dim[2])
+    
+        # 定义体素网格参数
+        self.vol_bnds = np.asarray(vol_bnds)
+        self.voxel_size = float(voxel_size)
+        self.trunc_margin = 5 * self.voxel_size  # SDF 的截断边界，将dis/trunc_margin > 1的截断为1
+    
+        # 调整体素网格的边界并确保数据是 C 语言的内存布局（行优先）
+        self.vol_dim = np.ceil((self.vol_bnds[:,1] - self.vol_bnds[:,0]) / self.voxel_size).copy(order='C').astype(int) # 体素网格长宽高
+        self.vol_bnds[:,1] = self.vol_bnds[:,0] + self.vol_dim * self.voxel_size # 更新体素网格边界
+        self.vol_origin = self.vol_bnds[:,0].copy(order='C').astype(np.float32) # 原点的世界坐标
+    
+        print("Voxel grid size: {} x {} x {} - Number of points: {:,}".format(
+            self.vol_dim[0], self.vol_dim[1], self.vol_dim[2],
+            self.vol_dim[0] * self.vol_dim[1] * self.vol_dim[2])
         )
-
-        # Initialize pointers to voxel volume in CPU memory
-        self._tsdf_vol = np.ones(self._vol_dim).astype(np.float32)
-        # for computing the cumulative moving average of observations per voxel
-        self._weight_vol = np.zeros(self._vol_dim).astype(np.float32)
-
-        # Get voxel grid coordinates
+    
+        self.tsdfvol = np.ones(self.vol_dim).astype(np.float32) #  TSDF 值
+        self._weightvol = np.zeros(self.vol_dim).astype(np.float32) # 权重值
+    
         xv, yv, zv = np.meshgrid(
-            range(self._vol_dim[0]),
-            range(self._vol_dim[1]),
-            range(self._vol_dim[2]),
+            range(self.vol_dim[0]),
+            range(self.vol_dim[1]),
+            range(self.vol_dim[2]),
             indexing='ij'
-        )
+        ) # 三个长宽高三维矩阵，xv存储每个体素x轴int坐标
         self.vox_coords = np.concatenate([
-            xv.reshape(1,-1),
-            yv.reshape(1,-1),
-            zv.reshape(1,-1)
-        ], axis=0).astype(int).T
-
+            xv.reshape(1, -1),
+            yv.reshape(1, -1),
+            zv.reshape(1, -1)
+        ], axis=0).astype(int).T # 长度为长宽高相乘的三维点集
+    
     @staticmethod
     @njit(parallel=True)
     def vox2world(vol_origin, vox_coords, vox_size):
@@ -70,8 +63,7 @@ class TSDFVolume:
     @staticmethod
     @njit(parallel=True)
     def cam2pix(cam_pts, intr):
-        """Convert camera coordinates to pixel coordinates.
-        """
+		# 将相机坐标转换为像素坐标。
         intr = intr.astype(np.float32)
         fx, fy = intr[0, 0], intr[1, 1]
         cx, cy = intr[0, 2], intr[1, 2]
@@ -83,15 +75,14 @@ class TSDFVolume:
 
     @staticmethod
     @njit(parallel=True)
-    def integrate_tsdf(tsdf_vol, dist, w_old, obs_weight):
-        """Integrate the TSDF volume.
-        """
-        tsdf_vol_int = np.empty_like(tsdf_vol, dtype=np.float32)
+    def integratetsdf(tsdfvol, dist, w_old, obs_weight):
+		# 融合TSDF值
+        tsdfvol_int = np.empty_like(tsdfvol, dtype=np.float32)
         w_new = np.empty_like(w_old, dtype=np.float32)
-        for i in prange(len(tsdf_vol)):
+        for i in prange(len(tsdfvol)):
             w_new[i] = w_old[i] + obs_weight
-            tsdf_vol_int[i] = (w_old[i] * tsdf_vol[i] + obs_weight * dist[i]) / w_new[i]
-        return tsdf_vol_int, w_new
+            tsdfvol_int[i] = (w_old[i] * tsdfvol[i] + obs_weight * dist[i]) / w_new[i]
+        return tsdfvol_int, w_new
 
     def integrate(self, depth_im, cam_intr, cam_pose, obs_weight=1.):
         """
@@ -103,15 +94,14 @@ class TSDFVolume:
             cam_pose (ndarray): 相机位姿（即外参），形状为 (4, 4)。
             obs_weight (float): 当前观测的权重。较高的值表示较高的权重。
         """
-        cam_pts = self.vox2world(self._vol_origin, self.vox_coords, self._voxel_size) # 将体素网格坐标转换为世界坐标
-        print(cam_pts.shape)
+        cam_pts = self.vox2world(self.vol_origin, self.vox_coords, self.voxel_size) # 将体素网格坐标转换为世界坐标
+        # print(cam_pts.shape) (n, 3)
         cam_pts = rigid_transform(cam_pts, np.linalg.inv(cam_pose))  # 将点从世界坐标系转换到相机坐标系
+
         pix_z = cam_pts[:, 2]  # 提取 z 坐标
         pix = self.cam2pix(cam_pts, cam_intr)  # 将相机坐标系下的点投影到像素坐标系
-        pix_x, pix_y = pix[:, 0], pix[:, 1]  # 分别提取 x 和 y 坐标
-
+        pix_x, pix_y = pix[:, 0], pix[:, 1]  # 分别提取 x 和 y 像素坐标
         im_h, im_w = depth_im.shape  # 获取深度图像的高度和宽度
- 
         # 剔除视锥体外的像素
         valid_pix = np.logical_and(pix_x >= 0,
                     np.logical_and(pix_x < im_w,
@@ -120,47 +110,38 @@ class TSDFVolume:
                                    pix_z > 0))))
 
         depth_val = np.zeros(pix_x.shape)  # 初始化深度值数组
+        # 布尔数组在索引位置，用于指示哪些像素位置是有效的
         depth_val[valid_pix] = depth_im[pix_y[valid_pix], pix_x[valid_pix]]  # 获取有效像素的深度值
-    
+
         # 集成 TSDF
-        depth_diff = depth_val - pix_z  # 计算深度差
+        depth_diff = depth_val - pix_z  # 计算深度差 depth_val: 图像中像素的深度信息，pix_z: 点的深度信息
         valid_pts = np.logical_and(depth_val > 0, depth_diff >= -self.trunc_margin)  # 筛选出有效点
         dist = np.minimum(1, depth_diff / self.trunc_margin)  # 计算 TSDF 距离值
         valid_vox_x = self.vox_coords[valid_pts, 0]  # 获取有效体素的 x 坐标
         valid_vox_y = self.vox_coords[valid_pts, 1]  # 获取有效体素的 y 坐标
         valid_vox_z = self.vox_coords[valid_pts, 2]  # 获取有效体素的 z 坐标
-        w_old = self._weight_vol[valid_vox_x, valid_vox_y, valid_vox_z]  # 获取旧的权重值
-        tsdf_vals = self._tsdf_vol[valid_vox_x, valid_vox_y, valid_vox_z]  # 获取旧的 TSDF 值
+        w_old = self._weightvol[valid_vox_x, valid_vox_y, valid_vox_z]  # 获取旧的权重值
+        tsdf_vals = self.tsdfvol[valid_vox_x, valid_vox_y, valid_vox_z]  # 获取旧的 TSDF 值
         valid_dist = dist[valid_pts]  # 获取有效的 TSDF 距离值
-        tsdf_vol_new, w_new = self.integrate_tsdf(tsdf_vals, valid_dist, w_old, obs_weight)  # 计算新的 TSDF 值和权重
-        self._weight_vol[valid_vox_x, valid_vox_y, valid_vox_z] = w_new  # 更新权重值
-        self._tsdf_vol[valid_vox_x, valid_vox_y, valid_vox_z] = tsdf_vol_new  # 更新 TSDF 值
+        tsdfvol_new, w_new = self.integratetsdf(tsdf_vals, valid_dist, w_old, obs_weight)  # 计算新的 TSDF 值和权重
+        self._weightvol[valid_vox_x, valid_vox_y, valid_vox_z] = w_new  # 更新权重值
+        self.tsdfvol[valid_vox_x, valid_vox_y, valid_vox_z] = tsdfvol_new  # 更新 TSDF 值
     
-    def get_volume(self):
-        return self._tsdf_vol
-
-    def get_point_cloud(self):
-        """Extract a point cloud from the voxel volume.
-        """
-        tsdf_vol = self.get_volume()
-
-        # Marching cubes
-        verts = measure.marching_cubes_lewiner(tsdf_vol, level=0)[0]
-        verts_ind = np.round(verts).astype(int)
-        verts = verts*self._voxel_size + self._vol_origin
-
-        pc = np.hstack([verts, colors])
-        return pc
+    def getvolume(self):
+        return self.tsdfvol
 
     def get_mesh(self):
-        """Compute a mesh from the voxel volume using marching cubes.
         """
-        tsdf_vol = self.get_volume()
-
-        # Marching cubes
-        verts, faces, norms, vals = measure.marching_cubes_lewiner(tsdf_vol, level=0)
-        verts_ind = np.round(verts).astype(int)
-        verts = verts*self._voxel_size+self._vol_origin    # voxel grid coordinates to world coordinates
+		tsdfvol：三维体数据，通常为TSDF（有符号距离函数）体素数据。
+		level：指定提取等值面的值。
+		verts：提取的表面网格的顶点坐标。
+		faces：网格的面，由顶点索引组成的三角形列表。
+		norms：每个顶点的法向量，用于渲染和光照计算。
+		vals：每个顶点的等值。
+        """
+        tsdfvol = self.getvolume()
+        verts, faces, norms, vals = measure.marching_cubes_lewiner(tsdfvol, level=0)
+        verts = verts*self.voxel_size+self.vol_origin    # voxel grid coordinates to world coordinates
 
         return verts, faces, norms
 
@@ -191,8 +172,7 @@ def get_view_frustum(depth_im, cam_intr, cam_pose):
 
 
 def meshwrite(filename, verts, faces, norms):
-    """Save a 3D mesh to a polygon .ply file.
-    """
+    # 将网格写成.ply格式
     # Write header
     ply_file = open(filename,'w')
     ply_file.write("ply\n")
