@@ -32,7 +32,7 @@ class TSDFVolume:
         )
     
         self.tsdfvol = np.ones(self.vol_dim).astype(np.float32) #  TSDF 值
-        self._weightvol = np.zeros(self.vol_dim).astype(np.float32) # 权重值
+        self.weightvol = np.zeros(self.vol_dim).astype(np.float32) # 权重值
     
         xv, yv, zv = np.meshgrid(
             range(self.vol_dim[0]),
@@ -63,7 +63,7 @@ class TSDFVolume:
     @staticmethod
     @njit(parallel=True)
     def cam2pix(cam_pts, intr):
-		# 将相机坐标转换为像素坐标。
+        # 将相机坐标转换为像素坐标。
         intr = intr.astype(np.float32)
         fx, fy = intr[0, 0], intr[1, 1]
         cx, cy = intr[0, 2], intr[1, 2]
@@ -76,7 +76,7 @@ class TSDFVolume:
     @staticmethod
     @njit(parallel=True)
     def integratetsdf(tsdfvol, dist, w_old, obs_weight):
-		# 融合TSDF值
+        # 融合TSDF值
         tsdfvol_int = np.empty_like(tsdfvol, dtype=np.float32)
         w_new = np.empty_like(w_old, dtype=np.float32)
         for i in prange(len(tsdfvol)):
@@ -89,7 +89,7 @@ class TSDFVolume:
         将一个深度图像帧集成到 TSDF 体积中。
     
         参数:
-		    depth_im (ndarray): 深度图像，形状为 (H, W)。
+            depth_im (ndarray): 深度图像，形状为 (H, W)。
             cam_intr (ndarray): 相机内参矩阵，形状为 (3, 3)。
             cam_pose (ndarray): 相机位姿（即外参），形状为 (4, 4)。
             obs_weight (float): 当前观测的权重。较高的值表示较高的权重。
@@ -115,16 +115,27 @@ class TSDFVolume:
 
         # 集成 TSDF
         depth_diff = depth_val - pix_z  # 计算深度差 depth_val: 图像中像素的深度信息，pix_z: 点的深度信息
+
         valid_pts = np.logical_and(depth_val > 0, depth_diff >= -self.trunc_margin)  # 筛选出有效点
+       
+        print(sum(valid_pix), sum(valid_pts))
+
         dist = np.minimum(1, depth_diff / self.trunc_margin)  # 计算 TSDF 距离值
+        
         valid_vox_x = self.vox_coords[valid_pts, 0]  # 获取有效体素的 x 坐标
         valid_vox_y = self.vox_coords[valid_pts, 1]  # 获取有效体素的 y 坐标
         valid_vox_z = self.vox_coords[valid_pts, 2]  # 获取有效体素的 z 坐标
-        w_old = self._weightvol[valid_vox_x, valid_vox_y, valid_vox_z]  # 获取旧的权重值
+        
+        w_old = self.weightvol[valid_vox_x, valid_vox_y, valid_vox_z]  # 获取旧的权重值
+        
         tsdf_vals = self.tsdfvol[valid_vox_x, valid_vox_y, valid_vox_z]  # 获取旧的 TSDF 值
+        
         valid_dist = dist[valid_pts]  # 获取有效的 TSDF 距离值
+        
         tsdfvol_new, w_new = self.integratetsdf(tsdf_vals, valid_dist, w_old, obs_weight)  # 计算新的 TSDF 值和权重
-        self._weightvol[valid_vox_x, valid_vox_y, valid_vox_z] = w_new  # 更新权重值
+        
+        self.weightvol[valid_vox_x, valid_vox_y, valid_vox_z] = w_new  # 更新权重值
+        
         self.tsdfvol[valid_vox_x, valid_vox_y, valid_vox_z] = tsdfvol_new  # 更新 TSDF 值
     
     def getvolume(self):
@@ -132,12 +143,12 @@ class TSDFVolume:
 
     def get_mesh(self):
         """
-		tsdfvol：三维体数据，通常为TSDF（有符号距离函数）体素数据。
-		level：指定提取等值面的值。
-		verts：提取的表面网格的顶点坐标。
-		faces：网格的面，由顶点索引组成的三角形列表。
-		norms：每个顶点的法向量，用于渲染和光照计算。
-		vals：每个顶点的等值。
+        tsdfvol：三维体数据，通常为TSDF（有符号距离函数）体素数据。
+        level：指定提取等值面的值。
+        verts：提取的表面网格的顶点坐标。
+        faces：网格的面，由顶点索引组成的三角形列表。
+        norms：每个顶点的法向量，用于渲染和光照计算。
+        vals：每个顶点的等值。
         """
         tsdfvol = self.getvolume()
         verts, faces, norms, vals = measure.marching_cubes_lewiner(tsdfvol, level=0)
