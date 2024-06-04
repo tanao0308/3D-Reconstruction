@@ -41,7 +41,6 @@ def icp(source_points, target_points, max_iterations=10, tolerance=1e-6):
 
         # 查找变换后的点云中每个点的最近邻目标点
         dis, idx = target_kdtree.query(pre_points)
-        print(dis.shape, idx.shape)
         fut_points = target_points[idx] # 未来的目标点云
 
         # 计算误差（变换后点到目标点的平均距离）
