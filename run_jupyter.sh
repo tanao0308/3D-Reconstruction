@@ -1,1 +1,1 @@
-jupyter notebook --allow-root
+jupyter notebook --allow-root main.ipynb
