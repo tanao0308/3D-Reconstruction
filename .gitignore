@@ -1,3 +1,5 @@
-myenv
-*.ply
-.ipynb_checkpoints/*
+*
+!*.py
+!*.sh
+!*.ipynb
+!*.ply

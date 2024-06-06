@@ -118,7 +118,7 @@ class TSDFVolume:
 
         valid_pts = np.logical_and(depth_val > 0, depth_diff >= -self.trunc_margin)  # 筛选出有效点
        
-        print(sum(valid_pix), sum(valid_pts))
+        # print(sum(valid_pix), sum(valid_pts))
 
         dist = np.minimum(1, depth_diff / self.trunc_margin)  # 计算 TSDF 距离值
         
