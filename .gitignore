@@ -3,3 +3,6 @@
 !*.sh
 !*.ipynb
 !*.ply
+!*.txt
+!*.png
+!*.jpg
