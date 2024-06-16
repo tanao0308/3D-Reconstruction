@@ -9,7 +9,7 @@ data = "data"
 
 if __name__ == "__main__":
     print("Estimating voxel volume bounds...")
-    n_imgs = 10  # 要处理的图像数量
+    n_imgs = 1000  # 要处理的图像数量
     cam_intr = np.loadtxt("data/camera-intrinsics.txt", delimiter=' ')  # 读取相机内参矩阵
     vol_bnds = np.zeros((3,2))  # 初始化体素体积边界（3维，分别是x, y, z的最小值和最大值）
     
